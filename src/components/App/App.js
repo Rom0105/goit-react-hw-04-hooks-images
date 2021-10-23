@@ -1,5 +1,4 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import { useState, useEffect } from 'react';
 import { error } from '@pnotify/core/dist/PNotify.js';
 import '@pnotify/core/dist/BrightTheme.css';
 import 'react-toastify/dist/ReactToastify.css';
@@ -11,109 +10,83 @@ import Modal from '../Modal/Modal';
 import searchApi from '../../Services/AppiServise';
 import Button from '../Button/Button';
 
-class App extends Component {
-  state = {
-    page: 1,
-    pictures: [],
-    query: '',
-    largeImage: '',
-    imgTags: '',
-    error: '',
-    showModal: false,
-    isLoading: false,
-  };
+export default function App() {
+  const [page, setPage] = useState(1);
+  const [pictures, setPictures] = useState([]);
+  const [query, setQuery] = useState('');
+  const [largeImage, setLargeImage] = useState('');
+  const [imgTags] = useState('');
+  const [mistake, setMistake] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  componentDidUpdate(prevProps, prevState) {
-    if (prevState.query !== this.state.query) {
-      this.fetchPictures();
-    }
-    if (this.state.page !== 2 && prevState.page !== this.state.page) {
-      window.scrollTo({
-        top: document.documentElement.scrollHeight,
-        behavior: 'smooth',
-      });
-    }
-  }
-
-  toggleModal = () => {
-    this.setState(state => ({
-      showModal: !state.showModal,
-    }));
-  };
-
-  bigImage = (largeImage = '') => {
-    this.setState({ largeImage });
-
-    this.toggleModal();
-  };
-
-  fetchPictures = () => {
-    const { page, query } = this.state;
-
-    const options = {
-      page,
-      query,
-    };
-
-    this.setState({ isLoading: true });
-
-    searchApi(options)
-      .then(pictures => {
-        if (!pictures.length) {
+  useEffect(() => {
+    if (!query) return;
+    const fetchPictures = async () => {
+      try {
+        const pictures = await searchApi(query, page);
+        if (pictures.length === 0) {
           error({
             text: 'No image!',
             delay: 1000,
           });
+        } else {
+          setPictures(prevImages => [...prevImages, ...pictures]);
+          window.scrollTo({
+            top: document.documentElement.scrollHeight,
+            behavior: 'smooth',
+          });
         }
-        this.setState(prevState => ({
-          pictures: [...prevState.pictures, ...pictures],
-          page: prevState.page + 1,
-        }));
-      })
-      .catch(error =>
+      } catch (error) {
         error({
           text: 'No image!',
           delay: 1000,
-        }),
-      )
-      .finally(() => this.setState({ isLoading: false }));
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPictures();
+  }, [page, query]);
+
+  const toggleModal = () => {
+    setShowModal(!showModal);
   };
 
-  onChangeQwery = query => {
-    this.setState({ query: query, page: 1, pictures: [], error: null });
+  const bigImage = (largeImage = '') => {
+    setLargeImage(largeImage);
+
+    toggleModal();
   };
 
-  render() {
-    const { pictures, isLoading, error, showModal, largeImage, imgTags } = this.state;
+  const onLoadMore = () => {
+    setIsLoading(true);
+    setPage(prevPage => prevPage + 1);
+  };
 
-    return (
-      <div className={style.AppStyle}>
-        <Searchbar onSubmit={this.onChangeQwery} />
+  const onChangeQuery = newSearch => {
+    setQuery(newSearch);
+    setPage(1);
+    setPictures([]);
+    setMistake(null);
+    setIsLoading(true);
+  };
 
-        {error && <h1>{error}</h1>}
+  return (
+    <div className={style.App}>
+      <Searchbar onSubmit={onChangeQuery} />
 
-        <ImageGallery images={pictures} selectedImage={this.bigImage} />
-        {isLoading && <Loader />}
-        {pictures.length > 11 && !isLoading && <Button onClick={this.fetchPictures} />}
-        {showModal && (
-          <Modal showModal={this.bigImage}>
-            <img src={largeImage} alt={imgTags} />
-          </Modal>
-        )}
-      </div>
-    );
-  }
+      {mistake && <h1>{mistake}</h1>}
+
+      <ImageGallery images={pictures} selectedImage={bigImage} />
+      {isLoading && <Loader />}
+      {pictures.length > 11 && !isLoading && <Button onClick={onLoadMore} />}
+      {showModal && (
+        <Modal showModal={bigImage}>
+          <img src={largeImage} alt={imgTags} />
+        </Modal>
+      )}
+    </div>
+  );
 }
-
-App.propTypes = {
-  pictures: PropTypes.array,
-  page: PropTypes.number,
-  query: PropTypes.string,
-  largeImage: PropTypes.string,
-  imgTags: PropTypes.string,
-  error: PropTypes.string,
-  showModal: PropTypes.bool,
-  isLoading: PropTypes.bool,
-};
-
-export default App;
