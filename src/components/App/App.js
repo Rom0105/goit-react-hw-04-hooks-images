@@ -30,13 +30,14 @@ export default function App() {
             text: 'No image!',
             delay: 1000,
           });
-        } else {
-          setPictures(prevImages => [...prevImages, ...pictures]);
+        }
+        setPictures(prevImages => [...prevImages, ...pictures]);
+
+        page > 1 &&
           window.scrollTo({
             top: document.documentElement.scrollHeight,
             behavior: 'smooth',
           });
-        }
       } catch (error) {
         error({
           text: 'No image!',
